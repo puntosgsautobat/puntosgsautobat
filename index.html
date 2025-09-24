@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Canje de Puntos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --color-principal: #c82333; 
+  --color-fondo: #f8f9fa;
+  --color-texto: #212529;
+}
+body { font-family: Arial, sans-serif; margin: 0; background: var(--color-fondo); color: var(--color-texto); }
+header { background: var(--color-principal); color: #fff; padding: 15px; text-align: center; }
+.container { display: flex; max-width: 1200px; margin: auto; padding: 20px; }
+.left-panel { flex: 3; margin-right: 20px; }
+.right-panel { flex: 1; position: sticky; top: 20px; background:#fff; padding:10px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); display:none;}
+button { background: var(--color-principal); color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
+button:hover { background: #a71d2a; }
+input[type=number], input[type=text], input[type=password] { padding: 5px; margin: 5px 0; width: 100%; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+.articulos-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 20px; }
+.articulo-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 10px; text-align: center; }
+.articulo-card img { max-width: 100%; border-radius: 4px; }
+.carrito-item, .pedido-item { background: #fff; padding: 10px; margin: 5px 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
+.tabs { display: flex; border-bottom: 2px solid var(--color-principal); margin-bottom: 15px; }
+.tab { padding: 10px 20px; cursor: pointer; background: #fff; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-right: 5px; }
+.tab.active { background: var(--color-principal); color: #fff; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+#loginDiv { display:flex; flex-direction:column; align-items:center; justify-content:center; height:50vh; transition: opacity 0.3s ease; }
+.hidden { opacity:0; display:none !important; }
+#loginDiv img { width:150px; margin-bottom:20px; }
+#loginDiv form { width:300px; text-align:center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Canje de Puntos</h1>
+</header>
+
+<div class="container">
+
+<!-- PANEL IZQUIERDO -->
+<div class="left-panel">
+
+<!-- LOGIN -->
+<div id="loginDiv">
+  <img src="https://www.gsautobat.com/wp-content/uploads/2025/03/logo-pieN.png" alt="Logo">
+  <form onsubmit="login();return false;">
+    <input id="usuario" placeholder="Usuario">
+    <input id="password" type="password" placeholder="Contraseña">
+    <button type="submit">Entrar</button>
+    <p id="loginError" style="color:red;margin-top:10px;"></p>
+  </form>
+</div>
+
+<!-- PANEL USUARIO -->
+<div id="panelDiv" class="hidden">
+  <p>
+    Bienvenido <strong><span id="nombreUsuario"></span></strong> | 
+    Puntos: <span id="puntosUsuario"></span>
+    <button onclick="cerrarSesion()">Cerrar sesión</button>
+  </p>
+
+  <!-- PESTAÑAS -->
+  <div class="tabs">
+    <div class="tab active" onclick="abrirPestana('catalogoTab')">Catálogo</div>
+    <div class="tab" onclick="abrirPestana('pedidosTab')">Histórico Pedidos</div>
+    <div class="tab" onclick="abrirPestana('adminTab')" id="adminTabBtn" style="display:none">Administrador</div>
+	<div class="tab" onclick="abrirPestana('pendientesTab')" id="pendientesTabBtn" style="display:none">Pedidos Pendientes</div>
+
+  </div>
+
+  <div id="catalogoTab" class="tab-content active">
+    <h2>Catálogo</h2>
+    <div>
+      <input id="filtroNombre" placeholder="Filtrar por nombre" oninput="filtrarCatalogo()">
+      <input id="filtroPuntos" type="number" placeholder="Máx puntos" oninput="filtrarCatalogo()">
+    </div>
+    <div id="catalogo" class="articulos-grid">Cargando artículos...</div>
+  </div>
+
+  <div id="pedidosTab" class="tab-content">
+    <h2>Histórico de pedidos</h2>
+    <div id="pedidos"></div>
+  </div>
+  
+  <div id="adminTab" class="tab-content">
+    <h2>Panel Administrador</h2>
+    <h3>Añadir artículo</h3>
+    <input id="artNombre" placeholder="Nombre">
+    <input id="artPuntos" type="number" placeholder="Puntos">
+    <input id="artStock" type="number" placeholder="Stock">
+    <input id="artCategoria" placeholder="Categoría">
+    <input id="artImagen" placeholder="URL imagen">
+    <input id="artDescripcion" placeholder="Descripción">
+    <button onclick="agregarArticulo()">Agregar</button>
+    <div id="adminMensajes"></div>
+  </div>
+  <div id="pendientesTab" class="tab-content">
+  <h2>Pedidos Pendientes por Usuario</h2>
+  <div id="pendientes"></div>
+	</div>
+ </div>
+
+</div>
+
+<!-- CARRITO DERECHO -->
+<div class="right-panel">
+  <h2>Carrito</h2>
+  <div id="carrito"></div>
+  <p>Total puntos a gastar: <span id="totalPuntos">0</span></p>
+  <button onclick="confirmarPedido()">Confirmar Pedido</button>
+</div>
+
+<script>
+// ---------------- VARIABLES ----------------
+const API_URL = "https://script.google.com/macros/s/AKfycbyNEjtGtkhhuUZTRHyFpolb2_AS5yGyNgDACR0gfJb0QXeYz_RXuCKfzvksZJwVXb4/exec"; 
+let usuarioActivo=null, rolUsuario=null, puntosUsuario=0, carrito={}, catalogo=[];
+
+// ---------------- PESTAÑAS ----------------
+function abrirPestana(id){
+  document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
+  const target = document.getElementById(id);
+  if (!target) return;
+  target.classList.add('active');
+
+  // remover active en tabs
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  // Buscar la .tab cuyo atributo onclick contiene la llamada con el id
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  const found = tabs.find(t => {
+    const onclick = t.getAttribute('onclick') || "";
+    return onclick.includes(`'${id}'`) || onclick.includes(`"${id}"`);
+  });
+  if (found) found.classList.add('active');
+
+  // acciones específicas
+  if (id === 'pendientesTab') cargarPedidosPendientes();
+}
+
+// ---------------- SESIÓN PERSISTENTE ----------------
+window.addEventListener("load",()=>{
+  const usuario = localStorage.getItem("usuarioActivo");
+  if(usuario){
+    usuarioActivo = usuario;
+    puntosUsuario = parseInt(localStorage.getItem("puntosUsuario"));
+    rolUsuario = localStorage.getItem("rolUsuario");
+    document.getElementById('nombreUsuario').innerText = usuarioActivo;
+    document.getElementById('puntosUsuario').innerText = puntosUsuario;
+    document.getElementById('loginDiv').classList.add('hidden');
+    document.getElementById('panelDiv').classList.remove('hidden');
+    document.querySelector('.right-panel').style.display='block';
+    if(rolUsuario==="admin") document.getElementById('adminTabBtn').style.display="inline-block";
+    carrito = JSON.parse(localStorage.getItem("carrito") || "{}");
+    mostrarCarrito();
+    document.getElementById('filtroNombre').value = localStorage.getItem("filtroNombre")||"";
+    document.getElementById('filtroPuntos').value = localStorage.getItem("filtroPuntos")||"";
+    cargarCatalogo();
+    cargarPedidos();
+  }
+});
+
+// ---------------- LOGIN ----------------
+async function login() {
+  const usuario = document.getElementById('usuario').value;
+  const password = document.getElementById('password').value;
+
+  // Ocultar error previo
+  document.getElementById('loginError').innerText = "";
+
+  // Mostrar panel de usuario de inmediato (UI rápida)
+  document.getElementById('loginDiv').classList.add('hidden');
+  document.getElementById('panelDiv').classList.remove('hidden');
+  document.querySelector('.right-panel').style.display = 'block';
+
+  try {
+    // 🔹 Login + validación de temporada en paralelo (mejor si tu API soporta acción combinada)
+    const paramsLogin = new URLSearchParams();
+    paramsLogin.append("action", "login"); // Puedes combinar con getTemporada en el servidor
+    paramsLogin.append("usuario", usuario);
+    paramsLogin.append("password", password);
+
+    const res = await fetch(API_URL, { method: "POST", body: paramsLogin });
+    const data = await res.json();
+
+    if (!data.success) {
+      // Si falla, revertir UI
+      document.getElementById('loginDiv').classList.remove('hidden');
+      document.getElementById('panelDiv').classList.add('hidden');
+      document.getElementById('loginError').innerText = data.error || "Login fallido";
+      return;
+    }
+
+    // Guardar info de usuario
+    usuarioActivo = data.usuario;
+    idUsuario = data.idUsuario;
+    puntosUsuario = parseInt(data.puntos);
+    rolUsuario = data.rol;
+
+    document.getElementById('nombreUsuario').innerText = usuarioActivo;
+    document.getElementById('puntosUsuario').innerText = puntosUsuario;
+
+    if (rolUsuario === "admin") document.getElementById('adminTabBtn').style.display = "inline-block";
+	if (rolUsuario === "admin") document.getElementById('pendientesTabBtn').style.display = "inline-block";
+
+    localStorage.setItem("usuarioActivo", usuarioActivo);
+    localStorage.setItem("idUsuario", idUsuario);
+    localStorage.setItem("puntosUsuario", puntosUsuario);
+    localStorage.setItem("rolUsuario", rolUsuario);
+
+    // Cargar carrito desde storage
+    carrito = JSON.parse(localStorage.getItem("carrito") || "{}");
+    mostrarCarrito();
+
+    // Cargar catálogo y pedidos en paralelo para no bloquear UI
+    Promise.all([cargarCatalogo(), cargarPedidos()]);
+
+  } catch (e) {
+    console.error(e);
+    // Revertir UI en caso de error
+    document.getElementById('loginDiv').classList.remove('hidden');
+    document.getElementById('panelDiv').classList.add('hidden');
+    document.getElementById('loginError').innerText = "Error de conexión";
+  }
+}
+
+
+// ENTER PARA LOGIN
+document.getElementById("password").addEventListener("keypress",e=>{if(e.key==="Enter") login();});
+document.getElementById("usuario").addEventListener("keypress",e=>{if(e.key==="Enter") login();});
+
+// ---------------- CERRAR SESIÓN ----------------
+function cerrarSesion(){
+  localStorage.clear();
+  location.reload();
+}
+
+// ---------------- CARGAR CATALOGO ----------------
+async function cargarCatalogo(){
+  // Mostrar catálogo desde localStorage de forma instantánea
+  const cacheCatalogo = localStorage.getItem("catalogoCache");
+  if(cacheCatalogo){
+    catalogo = JSON.parse(cacheCatalogo);
+    mostrarCatalogo(); // se ve al instante
+  } else {
+    document.getElementById('catalogo').innerHTML = "<p>Cargando artículos...</p>";
+  }
+
+  // Luego pedimos al servidor en paralelo para actualizar
+  try{
+    const params = new URLSearchParams();
+    params.append("action","getCatalogo");
+    const res = await fetch(API_URL,{method:"POST",body:params});
+    const data = await res.json();
+    if(data.success){
+      catalogo = data.articulos;
+      localStorage.setItem("catalogoCache", JSON.stringify(catalogo));
+      mostrarCatalogo(); // refrescar con datos reales
+    }
+  }catch(e){ 
+    console.error("Error cargando catálogo:", e); 
+  }
+}
+// ---------------- MOSTRAR CATALOGO CON RENDER PROGRESIVO ----------------
+function mostrarCatalogo(){
+  const cont = document.getElementById('catalogo');
+  cont.innerHTML = "";
+
+  let nombreFiltro = document.getElementById('filtroNombre').value.toLowerCase();
+  let puntosFiltro = parseInt(document.getElementById('filtroPuntos').value) || Infinity;
+
+  let filtrados = catalogo.filter(a =>
+    a.nombre.toLowerCase().includes(nombreFiltro) && a.puntos <= puntosFiltro
+  );
+
+  if(filtrados.length === 0){
+    cont.innerHTML = "<p>No hay artículos disponibles.</p>"; 
+    return;
+  }
+
+  let i = 0;
+  function renderLote(){
+    let lote = filtrados.slice(i, i+20); // 20 productos por tanda
+    lote.forEach(a=>{
+      let div = document.createElement('div');
+      div.className = "articulo-card";
+      div.innerHTML = `
+        <img src="${a.imagen}" alt="${a.nombre}" loading="lazy">
+        <h3>${a.nombre}</h3>
+        <p>${a.descripcion}</p>
+        <p><strong>Categoría:</strong> ${a.categoria}</p>
+        <p><strong>Puntos:</strong> ${a.puntos} | <strong>Stock:</strong> ${a.stock}</p>
+        <input type="number" min="1" max="${a.stock}" value="1" id="cant_${a.id}">
+        <button onclick="agregarAlCarrito('${a.id}')">Añadir al carrito</button>
+      `;
+      cont.appendChild(div);
+    });
+    i += 20;
+    if(i < filtrados.length) requestAnimationFrame(renderLote);
+  }
+  renderLote();
+}
+
+function filtrarCatalogo(){ 
+  localStorage.setItem("filtroNombre", document.getElementById('filtroNombre').value);
+  localStorage.setItem("filtroPuntos", document.getElementById('filtroPuntos').value);
+  mostrarCatalogo(); 
+}
+
+// ---------------- CARRITO ----------------
+function agregarAlCarrito(id) {
+  const articulo = catalogo.find(a => a.id === id);
+
+  // --- Aseguramos que la cantidad siempre sea un número válido
+  let cant = parseInt(document.getElementById(`cant_${id}`).value, 10);
+  if (isNaN(cant) || cant <= 0) {
+    alert("Introduce una cantidad válida");
+    return;
+  }
+
+  if (cant > articulo.stock) {
+    alert("No hay suficiente stock");
+    return;
+  }
+
+  let totalCarritoActual = Object.values(carrito).reduce((acc, a) => acc + a.cantidad * a.puntos, 0);
+  let totalNuevo = totalCarritoActual + cant * articulo.puntos;
+  if (totalNuevo > puntosUsuario) {
+    alert("No tienes suficientes puntos para añadir esta cantidad");
+    return;
+  }
+
+  if (carrito[id]) carrito[id].cantidad += cant;
+  else carrito[id] = { ...articulo, cantidad: cant };
+
+  localStorage.setItem("carrito", JSON.stringify(carrito));
+  mostrarCarrito();
+}
+
+function mostrarCarrito(){
+  const cont = document.getElementById('carrito');
+  cont.innerHTML="";
+  let total = 0;
+
+  Object.values(carrito).forEach(a=>{
+    const div = document.createElement('div');
+    div.className="carrito-item";
+    div.innerHTML=`${a.nombre} x ${a.cantidad} = ${a.cantidad*a.puntos} pts
+                   <button onclick="quitarDelCarrito('${a.id}')">Eliminar</button>`;
+    cont.appendChild(div);
+    total += a.cantidad * a.puntos;
+  });
+
+  document.getElementById('totalPuntos').innerText = total;
+  document.getElementById('puntosUsuario').innerText = puntosUsuario - total;
+}
+
+function quitarDelCarrito(id){
+  delete carrito[id];
+  localStorage.setItem("carrito", JSON.stringify(carrito));
+  mostrarCarrito();
+}
+
+// ---------------- CONFIRMAR PEDIDO ----------------
+async function confirmarPedido() {
+  const total = Object.values(carrito).reduce((acc, a) => acc + a.cantidad * a.puntos, 0);
+
+  // --- Validaciones inmediatas (no bloquean)
+  if (total > puntosUsuario) {
+    alert("No tienes suficientes puntos");
+    return;
+  }
+  if (Object.keys(carrito).length === 0) {
+    alert("Carrito vacío");
+    return;
+  }
+
+  // --- Mostrar feedback instantáneo al usuario
+  const btn = document.querySelector('.right-panel button');
+  btn.disabled = true;
+  btn.innerText = "Enviando pedido...";
+
+  try {
+    // --- Preparar payload de forma ligera
+    const carritoParaEnviar = {};
+    for (const id in carrito) {
+      const art = carrito[id];
+      carritoParaEnviar[id] = {
+        id: art.id,
+        cantidad: art.cantidad
+      };
+    }
+
+    const params = new URLSearchParams();
+    params.append("action", "guardarPedido");
+    params.append("idUsuario", localStorage.getItem("idUsuario"));
+    params.append("carrito", JSON.stringify(carritoParaEnviar));
+    params.append("totalPuntos", total);
+
+    // --- Disparar fetch sin bloquear la UI
+    const res = await fetch(API_URL, { method: "POST", body: params });
+    const data = await res.json();
+
+    if (data.success) {
+      // --- Actualizar UI al instante
+      carrito = {};
+      localStorage.removeItem("carrito");
+      mostrarCarrito();
+
+      puntosUsuario = data.puntosRestantes ?? (puntosUsuario - total);
+      document.getElementById('puntosUsuario').innerText = puntosUsuario;
+      localStorage.setItem("puntosUsuario", puntosUsuario);
+
+      // --- Refrescar pedidos y catálogo en paralelo
+      Promise.all([cargarPedidos(), cargarCatalogo()]);
+
+      alert("✅ Pedido realizado con éxito!");
+    } else {
+      alert(data.error || "Error al procesar pedido");
+    }
+  } catch (e) {
+    console.error("Error al enviar pedido:", e);
+    alert("Error de conexión al enviar pedido");
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "Confirmar Pedido";
+  }
+}
+// ---------------- ADMIN: AGREGAR ARTICULO ----------------
+async function agregarArticulo(){
+  const art = {
+    nombre: document.getElementById('artNombre').value,
+    puntos: parseInt(document.getElementById('artPuntos').value),
+    stock: parseInt(document.getElementById('artStock').value),
+    categoria: document.getElementById('artCategoria').value,
+    imagen: document.getElementById('artImagen').value,
+    descripcion: document.getElementById('artDescripcion').value
+  };
+  try{
+    const params = new URLSearchParams();
+    params.append("action","agregarArticulo");
+    params.append("articulo",JSON.stringify(art));
+
+    const res = await fetch(API_URL,{method:"POST",body:params});
+    const data = await res.json();
+    if(data.success){
+      document.getElementById('adminMensajes').innerText="Artículo agregado!";
+      cargarCatalogo();
+    } else document.getElementById('adminMensajes').innerText=data.error;
+  }catch(e){ console.error(e); document.getElementById('adminMensajes').innerText="Error de conexión"; }
+}
+// ---------------- CARGAR PEDIDOS ----------------
+async function cargarPedidos() {
+  try {
+    const params = new URLSearchParams();
+    params.append("action","getPedidos");
+    params.append("usuario",usuarioActivo);
+
+    const res = await fetch(API_URL,{method:"POST",body:params});
+    const data = await res.json();
+
+    if(data.success){
+      mostrarPedidos(data.pedidos);
+    } else {
+      console.error("Error al cargar pedidos:", data.error);
+      document.getElementById('pedidos').innerHTML = "<p>No se pudo cargar el histórico.</p>";
+    }
+  } catch(e){
+    console.error("Error en fetch pedidos:", e);
+    document.getElementById('pedidos').innerHTML = "<p>Error de conexión.</p>";
+  }
+}
+
+function mostrarPedidos(pedidos){
+  const cont = document.getElementById('pedidos');
+  cont.innerHTML = "";
+
+  if(!pedidos || pedidos.length===0){
+    cont.innerHTML = "<p>No tienes pedidos realizados.</p>";
+    return;
+  }
+
+  pedidos.forEach(p=>{
+    const div = document.createElement('div');
+    div.className="pedido-item";
+    div.innerHTML = `
+      <strong>ID Pedido:</strong> ${p.idPedido} <br>
+      <strong>Fecha:</strong> ${p.fecha} <br>
+      <strong>Puntos Gastados:</strong> ${p.puntosGastados} <br>
+      <strong>Artículos:</strong>
+      <ul>
+        ${p.articulos.map(a=>`<li>${a.nombre} x ${a.cantidad} = ${a.subtotal} pts</li>`).join('')}
+      </ul>
+      <strong>Estado:</strong> ${p.estado || "pendiente"}
+    `;
+    cont.appendChild(div);
+  });
+}
+//----------CARGAR PEDIDOS CLIENTES-----------
+async function cargarPedidosPendientes() {
+  try {
+    const params = new URLSearchParams();
+    params.append("action", "getPedidosPendientes");
+    const res = await fetch(API_URL, { method: "POST", body: params });
+    const data = await res.json();
+
+    if (data.success) {
+      mostrarPedidosPendientes(data.datos || []);
+    } else {
+      document.getElementById('pendientes').innerHTML = "<p>No se pudieron cargar los pedidos pendientes.</p>";
+      console.error("getPedidosPendientes error:", data.error);
+    }
+  } catch (e) {
+    console.error("Error en fetch pendientes:", e);
+    document.getElementById('pendientes').innerHTML = "<p>Error de conexión.</p>";
+  }
+}
+
+function mostrarPedidosPendientes(lista) {
+  const cont = document.getElementById('pendientes');
+  cont.innerHTML = "";
+
+  if (!lista || lista.length === 0) {
+    cont.innerHTML = "<p>No hay pedidos pendientes.</p>";
+    return;
+  }
+
+  // ---- 1. Determinar todas las columnas de artículos dinámicamente ----
+  let articulosSet = new Set();
+  lista.forEach(fila => {
+    for (let i = 1; i < fila.length - 2; i += 2) {
+      if (fila[i]) articulosSet.add(fila[i]);
+    }
+  });
+  const articulos = Array.from(articulosSet);
+
+  // ---- 2. Crear tabla ----
+  let html = "<table border='1' style='border-collapse:collapse;width:100%;text-align:center'>";
+  
+  // Encabezados
+  html += "<tr>";
+  html += "<th>Usuario</th>";
+  articulos.forEach(art => {
+    html += `<th>${art}</th>`;
+  });
+  html += "<th>Puntos Gastados</th><th>Puntos Restantes</th>";
+  html += "</tr>";
+
+  // ---- 3. Filas ----
+  lista.forEach(fila => {
+    const usuario = fila[0];
+    const puntosGastados = fila[fila.length - 2];
+    const puntosRestantes = fila[fila.length - 1];
+
+    // Inicializar cantidades por artículo
+    const cantidades = {};
+    for (let i = 1; i < fila.length - 2; i += 2) {
+      const art = fila[i];
+      const cant = fila[i+1];
+      if (art) cantidades[art] = cant;
+    }
+
+    // Construir fila
+    html += "<tr>";
+    html += `<td>${usuario}</td>`;
+    articulos.forEach(art => {
+      html += `<td>${cantidades[art] || 0}</td>`;
+    });
+    html += `<td>${puntosGastados}</td><td>${puntosRestantes}</td>`;
+    html += "</tr>";
+  });
+
+  html += "</table>";
+
+  cont.innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>
+
+
