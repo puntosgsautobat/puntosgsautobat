@@ -107,6 +107,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
     <div class="tab" onclick="abrirPestana('pedidosTab')">Histórico Pedidos</div>
     <div class="tab" onclick="abrirPestana('adminTab')" id="adminTabBtn" style="display:none">Administrador</div>
 	<div class="tab" onclick="abrirPestana('pendientesTab')" id="pendientesTabBtn" style="display:none">Pedidos Pendientes</div>
+	<div class="tab" onclick="abrirPestana('clientesTab')" id="clientesTabBtn" style="display:none">Clientes Asignados</div>
 
   </div>
 
@@ -124,6 +125,13 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
     <div id="pedidos"></div>
   </div>
   
+  <div id="clientesTab" class="tab-content">
+  <h2>Clientes asignados</h2>
+  <p>Listado de clientes que te han sido asignados (exportable a CSV).</p>
+  <div id="clientesContainer"></div>
+  <button id="exportClientesCsvBtn" style="display:none" onclick="exportarClientesCSV()">Exportar CSV</button>
+</div>
+
   <div id="adminTab" class="tab-content">
     <h2>Panel Administrador</h2>
     <h3>Añadir artículo</h3>
@@ -154,7 +162,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
 
 <script>
 // ---------------- VARIABLES ----------------
-const API_URL = "https://script.google.com/macros/s/AKfycbxF8vpWhGKFW_g_QjvH0m1yab_nZHvIrChByStLSXMwnQ8MnU1axcBjkZJC5WkGMo4YIw/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbywJmxPeXXgfNLEXM29qMCpAZz3GxmHseaWGtARiKxGQZebKzzuuOd6Th7Td1KpU5Pznw/exec"; 
 let usuarioActivo=null, rolUsuario=null, puntosUsuario=0, carrito={}, catalogo=[];
 
 // ---------------- PESTAÑAS ----------------
@@ -176,6 +184,7 @@ function abrirPestana(id){
 
   // acciones específicas
   if (id === 'pendientesTab') cargarPedidosPendientes();
+  if (id === 'clientesTab') cargarClientesAsignados();
 }
 
 // ---------------- SESIÓN PERSISTENTE ----------------
@@ -191,6 +200,7 @@ window.addEventListener("load",()=>{
     document.getElementById('panelDiv').classList.remove('hidden');
     document.querySelector('.right-panel').style.display='block';
     if(rolUsuario==="admin") document.getElementById('adminTabBtn').style.display="inline-block";
+	if (rolUsuario === "comercial") document.getElementById('clientesTabBtn').style.display = "inline-block";
     carrito = JSON.parse(localStorage.getItem("carrito") || "{}");
     mostrarCarrito();
     document.getElementById('filtroNombre').value = localStorage.getItem("filtroNombre")||"";
@@ -242,6 +252,8 @@ async function login() {
 
     if (rolUsuario === "admin") document.getElementById('adminTabBtn').style.display = "inline-block";
 	if (rolUsuario === "admin") document.getElementById('pendientesTabBtn').style.display = "inline-block";
+	if (rolUsuario === "comercial") {  document.getElementById('clientesTabBtn').style.display = "inline-block";
+}
 
     localStorage.setItem("usuarioActivo", usuarioActivo);
     localStorage.setItem("idUsuario", idUsuario);
@@ -617,6 +629,116 @@ function mostrarPedidosPendientes(lista) {
   html += "</table>";
 
   cont.innerHTML = html;
+}
+
+// --- Cargar clientes asignados para el comercial logado ---
+async function cargarClientesAsignados() {
+  try {
+    const params = new URLSearchParams();
+    params.append("action", "getClientesAsignados");
+    params.append("usuario", usuarioActivo); // usuario del comercial
+
+    const res = await fetch(API_URL, { method: "POST", body: params });
+    const data = await res.json();
+
+    if (!data.success) {
+      document.getElementById('clientesContainer').innerHTML = "<p>Error al cargar clientes asignados.</p>";
+      document.getElementById('exportClientesCsvBtn').style.display = "none";
+      console.error("getClientesAsignados error:", data.error);
+      return;
+    }
+
+    const lista = data.datos || [];
+    renderClientesAsignadosTabla(lista);
+  } catch (e) {
+    console.error("Error en cargarClientesAsignados:", e);
+    document.getElementById('clientesContainer').innerHTML = "<p>Error de conexión.</p>";
+    document.getElementById('exportClientesCsvBtn').style.display = "none";
+  }
+}
+
+function renderClientesAsignadosTabla(lista) {
+  const cont = document.getElementById('clientesContainer');
+  cont.innerHTML = "";
+
+  if (!lista || lista.length === 0) {
+    cont.innerHTML = "<p>No tienes clientes asignados.</p>";
+    document.getElementById('exportClientesCsvBtn').style.display = "none";
+    return;
+  }
+
+  // Construir tabla HTML (tipo Excel / CSV)
+  const table = document.createElement('table');
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+  table.innerHTML = `
+    <thead>
+      <tr style="background:#f0f0f0">
+        <th style="border:1px solid #ddd;padding:6px;text-align:left">ID</th>
+        <th style="border:1px solid #ddd;padding:6px;text-align:left">Usuario</th>
+        <th style="border:1px solid #ddd;padding:6px;text-align:left">Correo</th>
+        <th style="border:1px solid #ddd;padding:6px;text-align:right">Puntos</th>
+        <th style="border:1px solid #ddd;padding:6px;text-align:left">Rol</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tbody = table.querySelector('tbody');
+
+  lista.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="border:1px solid #ddd;padding:6px">${escapeHtml(row.id)}</td>
+      <td style="border:1px solid #ddd;padding:6px">${escapeHtml(row.usuario)}</td>
+      <td style="border:1px solid #ddd;padding:6px">${escapeHtml(row.correo)}</td>
+      <td style="border:1px solid #ddd;padding:6px;text-align:right">${Number(row.puntos) || 0}</td>
+      <td style="border:1px solid #ddd;padding:6px">${escapeHtml(row.rol || "")}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  cont.appendChild(table);
+  document.getElementById('exportClientesCsvBtn').style.display = "inline-block";
+
+  // Guardar en dataset para exportar si quieres
+  cont._listaExport = lista;
+}
+
+// Util helper para export CSV desde el listado renderizado
+function exportarClientesCSV() {
+  const cont = document.getElementById('clientesContainer');
+  const lista = cont._listaExport || [];
+  if (!lista || lista.length === 0) {
+    alert("No hay datos para exportar.");
+    return;
+  }
+
+  const headers = ["ID","Usuario","Correo","Puntos","Rol"];
+  const rows = lista.map(r => [r.id, r.usuario, r.correo, r.puntos, r.rol]);
+
+  const csvParts = [headers.join(";")].concat(rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")));
+  const csv = csvParts.join("\r\n");
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `clientes_asignados_${usuarioActivo}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Pequeña función de escape para html
+function escapeHtml(s) {
+  if (s === null || s === undefined) return "";
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 </script>
