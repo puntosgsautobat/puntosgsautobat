@@ -653,7 +653,7 @@ function mostrarPedidosPendientes(lista) {
   let html = "<table border='1' style='border-collapse:collapse;width:100%;text-align:center'>";
   
   // Encabezados
-  html += "<tr>";
+  html += "<tr style='background:#c82333;color:white;font-weight:bold'>";
   html += "<th>Usuario</th>";
   articulos.forEach(art => {
     html += `<th>${art}</th>`;
@@ -661,34 +661,54 @@ function mostrarPedidosPendientes(lista) {
   html += "<th>Puntos Gastados</th><th>Puntos Restantes</th>";
   html += "</tr>";
 
-  // ---- 3. Filas ----
+  // ---- 3. Calcular totales de artículos ----
+  let totalesArticulos = {};
+  articulos.forEach(art => totalesArticulos[art] = 0);
+
+  lista.forEach(fila => {
+    articulos.forEach(art => {
+      for (let i = 1; i < fila.length - 2; i += 2) {
+        if (fila[i] === art) {
+          totalesArticulos[art] += parseInt(fila[i + 1] || 0);
+        }
+      }
+    });
+  });
+
+  // ---- 4. Fila de totales (justo después del encabezado) ----
+  html += "<tr style='background:#ffe6e6;font-weight:bold'>";
+  html += "<td>TOTALES</td>";
+  articulos.forEach(art => {
+    html += `<td>${totalesArticulos[art]}</td>`;
+  });
+  html += "<td colspan='2'></td>"; // hueco para puntos
+  html += "</tr>";
+
+  // ---- 5. Filas de cada usuario ----
   lista.forEach(fila => {
     const usuario = fila[0];
     const puntosGastados = fila[fila.length - 2];
     const puntosRestantes = fila[fila.length - 1];
 
-    // Inicializar cantidades por artículo
-    const cantidades = {};
-    for (let i = 1; i < fila.length - 2; i += 2) {
-      const art = fila[i];
-      const cant = fila[i+1];
-      if (art) cantidades[art] = cant;
-    }
-
-    // Construir fila
     html += "<tr>";
-    html += `<td>${usuario}</td>`;
+    html += `<td><strong>${usuario}</strong></td>`;
+
     articulos.forEach(art => {
-      html += `<td>${cantidades[art] || 0}</td>`;
+      let cantidad = 0;
+      for (let i = 1; i < fila.length - 2; i += 2) {
+        if (fila[i] === art) cantidad = fila[i + 1];
+      }
+      html += `<td>${cantidad || ""}</td>`;
     });
+
     html += `<td>${puntosGastados}</td><td>${puntosRestantes}</td>`;
     html += "</tr>";
   });
 
   html += "</table>";
-
   cont.innerHTML = html;
 }
+
 
 // --- Cargar clientes asignados para el comercial logado ---
 async function cargarClientesAsignados() {
@@ -744,7 +764,6 @@ function renderClientesAsignadosTabla(lista) {
   `;
 
   const tbody = table.querySelector('tbody');
-
   lista.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -763,7 +782,6 @@ function renderClientesAsignadosTabla(lista) {
   // Guardar en dataset para exportar si quieres
   cont._listaExport = lista;
 }
-
 // Util helper para export CSV desde el listado renderizado
 function exportarClientesCSV() {
   const cont = document.getElementById('clientesContainer');
@@ -772,10 +790,8 @@ function exportarClientesCSV() {
     alert("No hay datos para exportar.");
     return;
   }
-
   const headers = ["ID","Usuario","Correo","Puntos","Rol"];
   const rows = lista.map(r => [r.id, r.usuario, r.correo, r.puntos, r.rol]);
-
   const csvParts = [headers.join(";")].concat(rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")));
   const csv = csvParts.join("\r\n");
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
