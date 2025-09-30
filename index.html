@@ -764,6 +764,7 @@ function renderClientesAsignadosTabla(lista) {
   `;
 
   const tbody = table.querySelector('tbody');
+
   lista.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -782,6 +783,7 @@ function renderClientesAsignadosTabla(lista) {
   // Guardar en dataset para exportar si quieres
   cont._listaExport = lista;
 }
+
 // Util helper para export CSV desde el listado renderizado
 function exportarClientesCSV() {
   const cont = document.getElementById('clientesContainer');
@@ -790,8 +792,10 @@ function exportarClientesCSV() {
     alert("No hay datos para exportar.");
     return;
   }
+
   const headers = ["ID","Usuario","Correo","Puntos","Rol"];
   const rows = lista.map(r => [r.id, r.usuario, r.correo, r.puntos, r.rol]);
+
   const csvParts = [headers.join(";")].concat(rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")));
   const csv = csvParts.join("\r\n");
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
