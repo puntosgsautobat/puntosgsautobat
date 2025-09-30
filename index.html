@@ -97,6 +97,13 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+#panelDiv p {
+  display: flex;
+  justify-content: flex-end; /* todo alineado a la derecha */
+  align-items: center;
+  gap: 15px; /* espacio entre texto y botón */
+  margin: 0 0 10px 0;
+}
 </style>
 </head>
 <body>
@@ -149,10 +156,10 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
       <input id="filtroPuntos" type="number" placeholder="Máx puntos" oninput="filtrarCatalogo()">
 	  <button id="ordenBtn" onclick="toggleOrden()">Ordenar de menor a mayor</button>
     </div>
-	<!-- ADVERTENCIA -->
+	<!-- ADVERTENCIA 
   <p style="margin-top: 15px;font-size: 1.2em;font-weight: bold;color: #c82333;text-align: center;background: #ffe6e6;padding: 10px;border-radius: 8px;border: 2px solid #c82333;">
     IMPORTANTE: Imagenes orientativas, se entregará un regalo de características similares.
-</p>
+</p> -->
     <div id="catalogo" class="articulos-grid">Cargando artículos...</div>
 	
   </div>
@@ -800,4 +807,3 @@ function escapeHtml(s) {
 </div>
 </body>
 </html>
-
