@@ -146,7 +146,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
     <div class="tab" onclick="abrirPestana('adminTab')" id="adminTabBtn" style="display:none">Administrador</div>
 	<div class="tab" onclick="abrirPestana('pendientesTab')" id="pendientesTabBtn" style="display:none">Pedidos Pendientes</div>
 	<div class="tab" onclick="abrirPestana('clientesTab')" id="clientesTabBtn" style="display:none">Clientes Asignados</div>
-
+	<div class="tab" onclick="abrirPestana('promocionesTab')">Promociones</div>
   </div>
 
   <div id="catalogoTab" class="tab-content active">
@@ -163,7 +163,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
     <div id="catalogo" class="articulos-grid">Cargando artículos...</div>
 	
   </div>
-
+  
   <div id="pedidosTab" class="tab-content">
     <h2>Histórico de pedidos</h2>
     <div id="pedidos"></div>
@@ -193,6 +193,11 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
   <div id="pendientes"></div>
 	</div>
  </div>
+ <div id="promocionesTab" class="tab-content">
+  <h2>Promociones</h2>
+  <div id="promocionesContainer">Cargando promociones...</div>
+</div>
+
 
 </div>
 
@@ -206,7 +211,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
 
 <script>
 // ---------------- VARIABLES ----------------
-const API_URL = "https://script.google.com/macros/s/AKfycbx4nxuF2NxdSz3c6CxeXv3NHiM0FsbykyKUXRWCN5gVrC-CQsh26tD1pDk4Lql8BCy9vg/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbwtXMrlkJib6Vm8qckF-ATwyrmq0srw9ATx-6I033MngCKjnEQvI_FYk-MqJ9Pz_RpzWA/exec"; 
 let usuarioActivo=null, rolUsuario=null, puntosUsuario=0, carrito={}, catalogo=[];
 
 // ---------------- PESTAÑAS ----------------
@@ -290,7 +295,9 @@ async function login() {
     idUsuario = data.idUsuario;
     puntosUsuario = parseInt(data.puntos);
     rolUsuario = data.rol;
-
+		const tipoCliente = data.tipoCliente || '';
+		localStorage.setItem('tipoCliente', tipoCliente);
+	console.log('→ rolUsuario:', rolUsuario, 'tipoCliente:', tipoCliente);
     document.getElementById('nombreUsuario').innerText = usuarioActivo;
     document.getElementById('puntosUsuario').innerText = puntosUsuario;
 
@@ -819,6 +826,59 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+// --------------- PROMOCIONES ----------------
+async function cargarPromociones() {
+  const cont = document.getElementById('promocionesContainer');
+  cont.innerHTML = '<p>Cargando promociones...</p>';
+  try {
+    const res  = await fetch(API_URL, { method:'POST', body:new URLSearchParams({action:'getPromociones'}) });
+    const data = await res.json();
+    if (!data.success) return cont.innerHTML = '<p>Error cargando promociones.</p>';
+
+    // Normaliza la lista
+    let promos = (data.promociones || []).map(p=>({
+      nombre:      p.nombre,
+      url:         p.url,
+      tipoCliente: (p.tipoCliente || '').toLowerCase()
+    }));
+
+    // Solo admin y comercial ven todo
+    const rol = localStorage.getItem('rolUsuario');
+    if (!['admin','comercial'].includes(rol)) {
+      const tipo = localStorage.getItem('tipoCliente');
+      promos = promos.filter(p => p.tipoCliente === 'todos' || p.tipoCliente === tipo);
+    }
+
+    if (promos.length === 0) {
+      return cont.innerHTML = '<p>No hay promociones disponibles.</p>';
+    }
+
+    // Render
+    const ul = document.createElement('ul');
+    promos.forEach(p => {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="${p.url}" target="_blank">${p.nombre}</a>`;
+      ul.appendChild(li);
+    });
+    cont.innerHTML = '';
+    cont.appendChild(ul);
+
+  } catch (e) {
+    console.error('Error cargando promociones:', e);
+    cont.innerHTML = '<p>Error de conexión.</p>';
+  }
+}
+// Llama a cargarPromociones() cuando abras esa pestaña
+const originalAbrirPestana = abrirPestana;
+abrirPestana = function(id) {
+  originalAbrirPestana(id);
+  if (id === 'promocionesTab') cargarPromociones();
+};
+
+// Almacena el tipoCliente tras el login
+// Dentro de login(), justo después de:
+//   rolUsuario = data.rol;
+localStorage.setItem('tipoCliente', data.tipoCliente || '');
 
 </script>
 <div id="loadingOverlay">
@@ -827,4 +887,3 @@ function escapeHtml(s) {
 </div>
 </body>
 </html>
-
