@@ -57,8 +57,11 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
 .tab-content.active { display: block; }
 #loginDiv { display:flex; flex-direction:column; align-items:center; justify-content:center; height:50vh; transition: opacity 0.3s ease; }
 .hidden { opacity:0; display:none !important; }
-#loginDiv img { width:150px; margin-bottom:20px; }
-#loginDiv form { width:300px; text-align:center; }
+#loginDiv img { width:220px; margin-bottom:30px; }
+#loginDiv form { width:380px; text-align:center; }
+#loginDiv input[type="text"],
+#loginDiv input[type="password"] {width: 100%;    max-width: 340px;  padding: 14px;font-size: 1.2em; margin: 12px auto; border-radius: 6px;display: block;box-sizing: border-box;}
+#loginDiv button { padding: 12px 20px;  font-size: 1.1em;  border-radius: 6px;}
 .header-content {  display: flex;  align-items: center;  justify-content: center;  gap: 15px;}
 .logo-header {  height: 135px;  width: auto;}
 #puntosUsuario {  font-size: 1.5em;  font-weight: bold;  color: var(--color-principal);}
@@ -66,7 +69,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
 .articulo-card { position: relative; }
 /* Overlay oscuro */
 #loadingOverlay {
-  display: none; /* Oculto por defecto */
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
@@ -124,7 +127,7 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
 <div id="loginDiv">
   <img src="https://www.gsautobat.com/wp-content/uploads/2025/03/logo-pieN.png" alt="Logo">
   <form onsubmit="login();return false;">
-    <input id="usuario" placeholder="Usuario">
+    <input id="usuario" type="text" placeholder="Usuario">
     <input id="password" type="password" placeholder="Contraseña">
     <button type="submit">Entrar</button>
     <p id="loginError" style="color:red;margin-top:10px;"></p>
