@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Canjeo de Puntos Gs Autobat</title>
+<title>Canjeo de Puntos GS Autobat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 :root {  --color-principal: #c82333;   --color-fondo: #f8f9fa;  --color-texto: #212529;}
@@ -92,7 +92,8 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
   #clientesContainer td::before {    content: attr(data-label);    position: absolute;    left: 10px;    width: 45%;    padding-left: 5px;    font-weight: bold;    text-align: left;  } 
   #clientesContainer th {    display: none;  }
   }
-
+#promocionesContainer ul {  list-style: none; padding-left: 0;  margin: 0;}
+#promocionesContainer li {  margin: 0; }
 </style>
 </head>
 <body>
@@ -841,14 +842,19 @@ async function cargarPromociones() {
     }
 
     // Render
-    const ul = document.createElement('ul');
-    promos.forEach(p => {
-      const li = document.createElement('li');
-      li.innerHTML = `<a href="${p.url}" target="_blank">${p.nombre}</a>`;
-      ul.appendChild(li);
-    });
-    cont.innerHTML = '';
-    cont.appendChild(ul);
+const ul = document.createElement('ul');
+ul.style.listStyle = "none";      // Quita los puntos
+ul.style.padding = "0";           // Quita sangría
+ul.style.margin = "0";            // Quita margen extra
+
+promos.forEach(p => {
+  const li = document.createElement('li');
+  li.style.marginBottom = "10px";  // Espacio entre enlaces si quieres
+  li.innerHTML = `<a href="${p.url}" target="_blank">${p.nombre}</a>`;
+  ul.appendChild(li);
+});
+cont.innerHTML = '';
+cont.appendChild(ul);
 
   } catch (e) {
     console.error('Error cargando promociones:', e);
@@ -874,4 +880,3 @@ localStorage.setItem('tipoCliente', data.tipoCliente || '');
 </div>
 </body>
 </html>
-
