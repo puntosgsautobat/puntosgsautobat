@@ -69,6 +69,16 @@ input[type=number], input[type=text], input[type=password] { padding: 5px; margi
 .pedido-tabla td {  padding: 10px 12px;  text-align: center;}
 .pedido-tabla .totales {  background: #ffe6e6;  font-weight: bold;}
 .pedido-tabla td strong {  color: #c82333;}
+#pedidos {  display: flex;  flex-direction: column;  gap: 15px;  margin-top: 20px;}
+.pedido-item {  background: #fff;  border-radius: 12px;  box-shadow: 0 2px 8px rgba(0,0,0,0.08);  padding: 15px 20px;  transition: transform 0.2s, box-shadow 0.2s;}
+.pedido-item:hover {  transform: translateY(-2px);  box-shadow: 0 6px 20px rgba(0,0,0,0.12);}
+.pedido-item strong {  color: #c82333;}
+.pedido-item ul {  margin: 5px 0 10px 20px;  padding: 0;}
+.pedido-item .estado {  display: inline-block;  padding: 3px 10px;  border-radius: 12px;  font-size: 0.9em;  color: #fff;}
+.pedido-item .estado.pendiente { background: #ffc107; }
+.pedido-item .estado.completado { background: #28a745; }
+.pedido-item .estado.cancelado { background: #dc3545; }
+
 
 </style>
 </head>
@@ -568,9 +578,15 @@ function mostrarPedidos(pedidos){
     return;
   }
 
-  pedidos.forEach(p=>{
+  pedidos.forEach(p => {
     const div = document.createElement('div');
     div.className="pedido-item";
+
+    // Color de estado dinámico
+    let estadoClass = 'pendiente';
+    if(p.estado === 'completado') estadoClass = 'completado';
+    else if(p.estado === 'cancelado') estadoClass = 'cancelado';
+
     div.innerHTML = `
       <strong>ID Pedido:</strong> ${p.idPedido} <br>
       <strong>Fecha:</strong> ${p.fecha} <br>
@@ -579,11 +595,12 @@ function mostrarPedidos(pedidos){
       <ul>
         ${p.articulos.map(a=>`<li>${a.nombre} x ${a.cantidad} = ${a.subtotal} pts</li>`).join('')}
       </ul>
-      <strong>Estado:</strong> ${p.estado || "pendiente"}
+      <strong>Estado:</strong> <span class="estado ${estadoClass}">${p.estado || "pendiente"}</span>
     `;
     cont.appendChild(div);
   });
 }
+
 //----------CARGAR PEDIDOS CLIENTES-----------
 async function cargarPedidosPendientes() {
   try {
